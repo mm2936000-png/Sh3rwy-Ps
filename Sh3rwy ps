@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sh3rwy PlayStation - نظام إدارة البلايستيشن</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+        }
+        header {
+            text-align: center;
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            letter-spacing: 2px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+        header p {
+            margin: 5px 0 0;
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .section-title {
+            font-size: 1.2rem;
+            margin: 25px 0 10px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 5px;
+            font-weight: bold;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .settings-card, .device-card, .debt-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        input, select, button {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            cursor: pointer;
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-weight: bold;
+        }
+        button.stop { background: var(--danger); }
+        button.start { background: var(--success); }
+        button.warning { background: var(--warning); }
+        .timer-display {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 8px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            text-align: center;
+        }
+        th { background: #e0e7ff; }
+
+        /* أزرار التنقل بين الأقسام الرئيسية */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .nav-tabs button {
+            flex: 1;
+            padding: 10px;
+            font-size: 1rem;
+            background: #e5e7eb;
+            color: var(--text);
+            border-radius: 8px;
+            min-width: 150px;
+        }
+        .nav-tabs button.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* شاشة تسجيل الدخول */
+        #loginOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .login-box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 320px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-box h2 { color: var(--primary); margin-top: 0; }
+
+        /* نافذة الشيك / الفاتورة */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .receipt-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 380px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            text-align: right;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .receipt-box h2 {
+            text-align: center;
+            margin-bottom: 5px;
+            color: var(--primary);
+        }
+        .receipt-box hr {
+            border: dashed 1px #ccc;
+            margin: 10px 0;
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModal, #receiptModal * { visibility: visible; }
+            #receiptModal { position: absolute; left: 0; top: 0; width: 100%; background: white; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>Sh3rwy PlayStation</h2>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">تسجيل الدخول للنظام</p>
+            <input type="text" id="loginUser" placeholder="Username (اسم المستخدم)">
+            <input type="password" id="loginPass" placeholder="Password (كلمة المرور)">
+            <button onclick="handleLogin()" style="margin-top: 10px; background: var(--success);">دخول</button>
+            <p id="loginError" style="color: red; font-size: 0.85rem; margin-top: 5px; display: none;">بيانات الدخول غير صحيحة!</p>
+        </div>
+    </div>
+
+<div class="container" id="appContainer" style="display: none;">
+    <header>
+        <h1>Sh3rwy</h1>
+        <p>المستخدم الحالي: <span id="currentUsernameDisplay" style="font-weight: bold; text-decoration: underline;"></span></p>
+    </header>
+
+    <!-- أزرار التبديل بين الأقسام -->
+    <div class="nav-tabs" id="navTabsContainer">
+        <button id="tabBtnTimer" class="active" onclick="switchTab('timer')">أجهزة اللعب والتايم</button>
+        <button id="tabBtnDebt" onclick="switchTab('debt')">دفتر الحسابات والديون</button>
+        <button id="tabBtnDailyLog" onclick="switchTab('dailylog')">سجل التايم والتقفيل اليومي</button>
+        <button id="tabBtnSettings" onclick="switchTab('settings')" style="display: none;">إعدادات الأسعار والمنتجات</button>
+        <button id="tabBtnUsers" onclick="switchTab('users')" style="display: none;">إدارة المستخدمين</button>
+    </div>
+
+    <!-- 1. قسم أجهزة اللعب والتايم -->
+    <div id="sectionTimerWrapper">
+        <div class="section-title"><span>أجهزة اللعب (التايم والطلبات)</span></div>
+        <div class="grid" id="devicesContainer">
+            <!-- الأجهزة ستضاف تلقائياً هنا -->
+        </div>
+    </div>
+
+    <!-- 2. دفتر الحسابات والديون -->
+    <div id="sectionDebtWrapper" style="display: none;">
+        <div class="section-title"><span>دفتر الحسابات والديون والمديونيات</span></div>
+        <div class="debt-card">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="clientName" placeholder="اسم العميل" style="flex: 2;">
+                <input type="number" id="clientTotal" placeholder="المبلغ المطلوب" style="flex: 1;">
+                <input type="number" id="clientPaid" placeholder="المبلغ المدفوع" style="flex: 1;">
+                <button onclick="addDebt()" style="width: auto; padding: 8px 15px;">إضافة للدفتر</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>سجله (المستخدم)</th>
+                        <th>اسم العميل / التفاصيل</th>
+                        <th>المطلوب</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="debtTableBody">
+                    <!-- الديون ستظهر هنا -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 3. سجل التايم والتقفيل اليومي -->
+    <div id="sectionDailyLogWrapper" style="display: none;">
+        <div class="section-title">
+            <span>سجل التايم والتقفيل اليومي (مبيعات اليوم)</span>
+            <button onclick="clearDailyLog()" style="background: var(--danger); width: auto; font-size: 0.85rem; padding: 5px 10px;">تصفير السجل اليومي</button>
+        </div>
+        <div class="settings-card">
+            <div id="adminViewSelector" style="margin-bottom: 15px; display: none; background: #eef2ff; padding: 10px; border-radius: 6px;">
+                <label style="font-weight: bold; font-size: 0.95rem;">اختر وردية المستخدم لمراقبتها وسحب التوتال:</label>
+                <select id="selectUserLogView" onchange="renderDailyLog()" style="margin-top: 5px;">
+                    <option value="ALL">جميع المستخدمين (إجمالي السيستم بالكامل)</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #bbf7d0;">
+                <h3 style="margin: 0; color: var(--success); font-size: 1.2rem;">التوتال النهائي للمبيعات: <span id="grandTotalDisplay">0.00</span> ج.م</h3>
+                <p style="margin: 0; font-size: 0.9rem; color: #555;">عدد العمليات المسجلة: <span id="totalOperationsCount">0</span></p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>المستخدم</th>
+                        <th>اسم الجهاز / الخدمة</th>
+                        <th>مدة اللعب</th>
+                        <th>حساب التايم</th>
+                        <th>الطلبات</th>
+                        <th>التوتال</th>
+                        <th>الوقت</th>
+                    </tr>
+                </thead>
+                <tbody id="dailyLogTableBody">
+                    <!-- العمليات ستظهر هنا -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 4. قسم إدارة المستخدمين (للآدمن فقط) -->
+    <div id="sectionUsersWrapper" style="display: none;">
+        <div class="section-title"><span>لوحة تحكم الآدمن (إدارة المستخدمين وكلمات المرور)</span></div>
+        <div class="settings-card">
+            <h4 style="margin-top: 0; color: var(--primary);">إضافة مستخدم جديد</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                <input type="text" id="newUsername" placeholder="اسم المستخدم الجديد" style="flex: 2;">
+                <input type="password" id="newPassword" placeholder="كلمة المرور" style="flex: 2;">
+                <button onclick="createNewUser()" style="flex: 1; background: var(--success); width: auto;">إضافة يوزر جديد</button>
+            </div>
+            
+            <h4 style="color: var(--primary); border-top: 1px dashed #ccc; padding-top: 15px;">تغيير كلمة مرور مستخدم</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <select id="changeUserSelect" style="flex: 2;"></select>
+                <input type="password" id="changedPasswordInput" placeholder="كلمة المرور الجديدة" style="flex: 2;">
+                <button onclick="updateUserPassword()" style="flex: 1; background: var(--warning); width: auto;">تغيير الباسورد</button>
+            </div>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 15px; background: #f9fafb; padding: 8px; border-radius: 5px;">المستخدمين المسجلين حالياً: <span id="usersListSpan"></span></p>
+        </div>
+    </div>
+
+    <!-- 5. قسم إعدادات الأسعار والمشروبات والأجهزة (للآدمن فقط) -->
+    <div id="sectionSettingsWrapper" style="display: none;">
+        <div class="section-title"><span>إعدادات أسعار السنجل والمالتي والمشاريب والأجهزة</span></div>
+        <div class="settings-card">
+            <h4 style="margin-top: 0; color: var(--primary);">أسعار الساعات</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                <label>سعر ساعة PS4 (سنجل): <input type="number" id="ps4SingleRate" value="25" onchange="updateRates()"></label>
+                <label>سعر ساعة PS4 (مالتي): <input type="number" id="ps4MultiRate" value="30" onchange="updateRates()"></label>
+                <label>سعر ساعة PS5 (سنجل): <input type="number" id="ps5SingleRate" value="35" onchange="updateRates()"></label>
+                <label>سعر ساعة PS5 (مالتي): <input type="number" id="ps5MultiRate" value="50" onchange="updateRates()"></label>
+            </div>
+
+            <h4 style="color: var(--primary); border-top: 1px dashed #ccc; padding-top: 15px;">إضافة مشروب أو منتج جديد للقائمة السريعة</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                <input type="text" id="presetNameInput" placeholder="اسم المشروب (مثال: عصير مانجو)" style="flex: 2;">
+                <input type="number" id="presetPriceInput" placeholder="السعر" style="flex: 1;">
+                <button onclick="addNewPresetItem()" style="background: var(--success); width: auto; padding: 8px 15px;">+ إضافة للقائمة</button>
+            </div>
+
+            <h4 style="color: var(--primary); border-top: 1px dashed #ccc; padding-top: 15px;">إضافة جهاز جديد</h4>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <select id="newDeviceType" style="flex: 1;">
+                    <option value="PS4">PlayStation 4</option>
+                    <option value="PS5">PlayStation 5</option>
+                </select>
+                <input type="text" id="newDeviceName" placeholder="اسم أو رقم الجهاز (مثال: جهاز 5)" style="flex: 2;">
+                <button onclick="addNewDevice()" style="background: var(--success); width: auto; padding: 8px 15px;">+ إضافة جهاز جديد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- زر تسجيل الخروج -->
+    <div style="text-align: center; margin: 30px 0 20px 0;">
+        <button onclick="logout()" style="background: var(--danger); padding: 12px 30px; font-size: 1.1rem; width: auto; border-radius: 8px;">تسجيل خروج من النظام</button>
+    </div>
+</div>
+
+<!-- نافذة الشيك / الفاتورة المنبثقة -->
+<div class="modal" id="receiptModal">
+    <div class="receipt-box" id="receiptContent">
+        <!-- تفاصيل الشيك ستظهر هنا -->
+    </div>
+</div>
+
+<script>
+    let users = JSON.parse(localStorage.getItem('sh3rwy_users'));
+    if (!users) {
+        users = [
+            { username: 'Sh3rwy', pass: 'Adam Sh3rwy', role: 'admin' }
+        ];
+        localStorage.setItem('sh3rwy_users', JSON.stringify(users));
+    }
+
+    let currentUser = null;
+    let rates = JSON.parse(localStorage.getItem('sh3rwy_rates')) || {
+        PS4: { single: 25, multi: 30 },
+        PS5: { single: 35, multi: 50 }
+    };
+
+    let presetItems = JSON.parse(localStorage.getItem('sh3rwy_presets')) || [
+        { name: 'شاي', price: 10 },
+        { name: 'قهوة', price: 15 },
+        { name: 'بيبسي', price: 35 },
+        { name: 'فيوري', price: 40 },
+        { name: 'تويست', price: 25 },
+        { name: 'مياه معدنية', price: 10 }
+    ];
+
+    let devices = JSON.parse(localStorage.getItem('sh3rwy_devices')) || [
+        { id: 1, name: "PS5 - جهاز 1", type: "PS5", mode: "single", startTime: null, timerInterval: null, elapsedSeconds: 0, singleSeconds: 0, multiSeconds: 0, itemsCost: 0, itemsList: [] },
+        { id: 2, name: "PS4 - جهاز 2", type: "PS4", mode: "single", startTime: null, timerInterval: null, elapsedSeconds: 0, singleSeconds: 0, multiSeconds: 0, itemsCost: 0, itemsList: [] },
+        { id: 3, name: "PS4 - جهاز 3", type: "PS4", mode: "single", startTime: null, timerInterval: null, elapsedSeconds: 0, singleSeconds: 0, multiSeconds: 0, itemsCost: 0, itemsList: [] }
+    ];
+
+    let debts = JSON.parse(localStorage.getItem('sh3rwy_debts')) || [];
+    let dailyLogs = JSON.parse(localStorage.getItem('sh3rwy_daily_logs')) || [];
+
+    function switchTab(tabName) {
+        let wrappers = {
+            timer: document.getElementById('sectionTimerWrapper'),
+            debt: document.getElementById('sectionDebtWrapper'),
+            dailylog: document.getElementById('sectionDailyLogWrapper'),
+            settings: document.getElementById('sectionSettingsWrapper'),
+            users: document.getElementById('sectionUsersWrapper')
+        };
+
+        let buttons = {
+            timer: document.getElementById('tabBtnTimer'),
+            debt: document.getElementById('tabBtnDebt'),
+            dailylog: document.getElementById('tabBtnDailyLog'),
+            settings: document.getElementById('tabBtnSettings'),
+            users: document.getElementById('tabBtnUsers')
+        };
+
+        for (let key in wrappers) {
+            if (wrappers[key]) wrappers[key].style.display = (key === tabName) ? 'block' : 'none';
+        }
+
+        for (let key in buttons) {
+            if (buttons[key]) {
+                if (key === tabName) {
+                    buttons[key].className = 'active';
+                } else {
+                    buttons[key].className = '';
+                }
+            }
+        }
+
+        if (tabName === 'dailylog') {
+            renderDailyLog();
+        }
+    }
+
+    function handleLogin() {
+        let u = document.getElementById('loginUser').value.trim();
+        let p = document.getElementById('loginPass').value.trim();
+        let err = document.getElementById('loginError');
+
+        let found = users.find(x => x.username === u && x.pass === p);
+        if (found) {
+            currentUser = found;
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            document.getElementById('currentUsernameDisplay').innerText = currentUser.username;
+            
+            // تفعيل الصلاحيات بناءً على دور المستخدم (آدمن رئيسي أم موظف)
+            let tabSettings = document.getElementById('tabBtnSettings');
+            let tabUsers = document.getElementById('tabBtnUsers');
+            let adminViewSel = document.getElementById('adminViewSelector');
+
+            if (currentUser.role === 'admin') {
+                if (tabSettings) tabSettings.style.display = 'block';
+                if (tabUsers) tabUsers.style.display = 'block';
+                if (adminViewSel) adminViewSel.style.display = 'block';
+                updateUsersListText();
+                updateAdminViewSelect();
+            } else {
+                if (tabSettings) tabSettings.style.display = 'none';
+                if (tabUsers) tabUsers.style.display = 'none';
+                if (adminViewSel) adminViewSel.style.display = 'none';
+            }
+            loadRatesToInputs();
+            renderDebts();
+            renderDevicesStructure();
+            switchTab('timer');
+        } else {
+            err.style.display = 'block';
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+        document.getElementById('loginError').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'none';
+        document.getElementById('loginOverlay').style.display = 'flex';
+    }
+
+    function createNewUser() {
+        if (currentUser.role !== 'admin') {
+            alert("عذراً، هذه الصلاحية للآدمن الرئيسي فقط!");
+            return;
+        }
+        let u = document.getElementById('newUsername').value.trim();
+        let p = document.getElementById('newPassword').value.trim();
+
+        if (!u || !p) {
+            alert("يرجى إدخال اسم المستخدم وكلمة المرور!");
+            return;
+        }
+
+        if (users.some(x => x.username === u)) {
+            alert("اسم المستخدم موجود بالفعل، اختر اسم آخر.");
+            return;
+        }
+
+        users.push({ username: u, pass: p, role: 'staff' });
+        localStorage.setItem('sh3rwy_users', JSON.stringify(users));
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        updateUsersListText();
+        updateAdminViewSelect();
+        alert("تم إنشاء اليوزر الجديد بنجاح!");
+    }
+
+    function updateUserPassword() {
+        if (currentUser.role !== 'admin') {
+            alert("عذراً، هذه الصلاحية للآدمن الرئيسي فقط!");
+            return;
+        }
+        let selectUser = document.getElementById('changeUserSelect').value;
+        let newPass = document.getElementById('changedPasswordInput').value.trim();
+
+        if (!newPass) {
+            alert("يرجى إدخال كلمة المرور الجديدة!");
+            return;
+        }
+
+        let target = users.find(x => x.username === selectUser);
+        if (target) {
+            target.pass = newPass;
+            localStorage.setItem('sh3rwy_users', JSON.stringify(users));
+            document.getElementById('changedPasswordInput').value = '';
+            alert(`تم تغيير باسورد المستخدم (${selectUser}) بنجاح!`);
+        }
+    }
+
+    function updateUsersListText() {
+        let listStr = users.map(x => x.username + (x.role === 'admin' ? ' (آدمن رئيسي)' : '')).join('، ');
+        let spanEl = document.getElementById('usersListSpan');
+        if (spanEl) spanEl.innerText = listStr;
+
+        let selectEl = document.getElementById('changeUserSelect');
+        if (selectEl) {
+            selectEl.innerHTML = '';
+            users.forEach(u => {
+                let opt = document.createElement('option');
+                opt.value = u.username;
+                opt.innerText = u.username + (u.role === 'admin' ? ' (آدمن)' : '');
+                selectEl.appendChild(opt);
+            });
+        }
+    }
+
+    function updateAdminViewSelect() {
+        let select = document.getElementById('selectUserLogView');
+        if (select) {
+            select.innerHTML = '<option value="ALL">جميع المستخدمين (إجمالي السيستم بالكامل)</option>';
+            users.forEach(u => {
+                let opt = document.createElement('option');
+                opt.value = u.username;
+                opt.innerText = `وردية المستخدم: ${u.username}`;
+                select.appendChild(opt);
+            });
+        }
+    }
+
+    function loadRatesToInputs() {
+        document.getElementById('ps4SingleRate').value = rates.PS4.single;
+        document.getElementById('ps4MultiRate').value = rates.PS4.multi;
+        document.getElementById('ps5SingleRate').value = rates.PS5.single;
+        document.getElementById('ps5MultiRate').value = rates.PS5.multi;
+    }
+
+    function updateRates() {
+        if (currentUser.role !== 'admin') return;
+        rates.PS4.single = parseFloat(document.getElementById('ps4SingleRate').value) || 0;
+        rates.PS4.multi = parseFloat(document.getElementById('ps4MultiRate').value) || 0;
+        rates.PS5.single = parseFloat(document.getElementById('ps5SingleRate').value) || 0;
+        rates.PS5.multi = parseFloat(document.getElementById('ps5MultiRate').value) || 0;
+        localStorage.setItem('sh3rwy_rates', JSON.stringify(rates));
+        updateDevicesDynamicValues();
+    }
+
+    function addNewPresetItem() {
+        if (currentUser.role !== 'admin') {
+            alert("للآدمن فقط!");
+            return;
+        }
+        let name = document.getElementById('presetNameInput').value.trim();
+        let price = parseFloat(document.getElementById('presetPriceInput').value) || 0;
+
+        if (!name || price <= 0) {
+            alert("برجاء إدخال اسم المشروب وسعر صحيح!");
+            return;
+        }
+
+        presetItems.push({ name, price });
+        localStorage.setItem('sh3rwy_presets', JSON.stringify(presetItems));
+        document.getElementById('presetNameInput').value = '';
+        document.getElementById('presetPriceInput').value = '';
+        renderDevicesStructure();
+        alert("تم إضافة المشروب للقائمة بنجاح!");
+    }
+
+    function addNewDevice() {
+        if (currentUser.role !== 'admin') {
+            alert("للآدمن فقط!");
+            return;
+        }
+        let type = document.getElementById('newDeviceType').value;
+        let nameInput = document.getElementById('newDeviceName').value.trim();
+        let name = nameInput ? nameInput : `${type} - جهاز ${devices.length + 1}`;
+
+        let newDev = {
+            id: Date.now(),
+            name: name,
+            type: type,
+            mode: "single",
+            startTime: null,
+            timerInterval: null,
+            elapsedSeconds: 0,
+            singleSeconds: 0,
+            multiSeconds: 0,
+            itemsCost: 0,
+            itemsList: []
+        };
+
+        devices.push(newDev);
+        localStorage.setItem('sh3rwy_devices', JSON.stringify(devices));
+        document.getElementById('newDeviceName').value = '';
+        renderDevicesStructure();
+    }
+
+    function deleteDevice(id) {
+        if (currentUser.role !== 'admin') {
+            alert("حذف الأجهزة متاح للآدمن الرئيسي فقط!");
+            return;
+        }
+        let dev = devices.find(d => d.id === id);
+        if (dev && dev.startTime) {
+            clearInterval(dev.timerInterval);
+        }
+        devices = devices.filter(d => d.id !== id);
+        localStorage.setItem('sh3rwy_devices', JSON.stringify(devices));
+        renderDevicesStructure();
+    }
+
+    function toggleMode(id) {
+        let dev = devices.find(d => d.id === id);
+        dev.mode = dev.mode === 'single' ? 'multi' : 'single';
+        localStorage.setItem('sh3rwy_devices', JSON.stringify(devices));
+        updateSingleDeviceUI(dev);
+    }
+
+    function renderDevicesStructure() {
+        const container = document.getElementById('devicesContainer');
+        container.innerHTML = '';
+        
+        devices.forEach(dev => {
+            let card = document.createElement('div');
+            card.className = 'device-card';
+            card.id = `device_card_${dev.id}`;
+            
+            let optionsHtml = `<option value="">-- اختر مشروب أو طلب --</option>`;
+            presetItems.forEach(item => {
+                optionsHtml += `<option value="${item.name}|${item.price}">${item.name} (${item.price} ج.م)</option>`;
+            });
+
+            // زر الحذف يظهر فقط للآدمن
+            let deleteBtnHtml = currentUser.role === 'admin' ? `<button onclick="deleteDevice(${dev.id})" style="background: #9ca3af; padding: 2px 6px; font-size: 0.8rem; width: auto;">حذف</button>` : '';
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>${dev.name}</h3>
+                    ${deleteBtnHtml}
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <span style="font-size: 0.9rem;">النوع: ${dev.type}</span>
+                    <button onclick="toggleMode(${dev.id})" id="mode_btn_${dev.id}" style="padding: 2px 8px; font-size: 0.85rem; width: auto; background: var(--warning);"></button>
+                </div>
+                <p style="margin: 5px 0; font-size: 0.85rem; color: #555;">سعر الساعة الحالي: <span id="rate_${dev.id}">0</span> ج.م</p>
+                <div class="timer-display" id="timer_${dev.id}">00:00:00</div>
+                <p>حساب التايم: <strong id="timecost_${dev.id}">0.00 ج.م</strong></p>
+                
+                <div style="background: #f9fafb; padding: 8px; border-radius: 5px; margin-bottom: 8px;">
+                    <label style="font-size: 0.9rem; font-weight: bold;">اختر الطلب السريع:</label>
+                    <select id="preset_item_${dev.id}" onchange="selectPresetItem(${dev.id})">
+                        ${optionsHtml}
+                    </select>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <input type="text" id="item_name_${dev.id}" placeholder="اسم الطلب" style="flex: 2;">
+                        <input type="number" id="item_price_${dev.id}" placeholder="السعر" style="flex: 1;">
+                        <button onclick="addItem(${dev.id})" style="width: auto; padding: 6px 12px;">+</button>
+                    </div>
+                </div>
+                
+                <p style="font-size: 0.9rem;" id="items_text_${dev.id}">الطلبات: لا توجد (المجموع: 0 ج.م)</p>
+                
+                <hr>
+                <p style="font-size: 1.1rem; color: var(--success);">التوتال النهائي: <strong id="totalcost_${dev.id}">0.00 ج.م</strong></p>
+                
+                <div style="display: flex; gap: 5px;" id="actions_${dev.id}">
+                </div>
+            `;
+            container.appendChild(card);
+            updateSingleDeviceUI(dev);
+        });
+    }
+
+    function updateSingleDeviceUI(dev) {
+        let singleHours = dev.singleSeconds / 3600;
+        let multiHours = dev.multiSeconds / 3600;
+        let singleCost = singleHours * rates[dev.type].single;
+        let multiCost = multiHours * rates[dev.type].multi;
+        let timeCost = singleCost + multiCost;
+        let totalCost = timeCost + dev.itemsCost;
+        let currentRate = rates[dev.type][dev.mode];
+
+        let timerEl = document.getElementById(`timer_${dev.id}`);
+        let timeCostEl = document.getElementById(`timecost_${dev.id}`);
+        let totalCostEl = document.getElementById(`totalcost_${dev.id}`);
+        let itemsTextEl = document.getElementById(`items_text_${dev.id}`);
+        let actionsEl = document.getElementById(`actions_${dev.id}`);
+        let modeBtn = document.getElementById(`mode_btn_${dev.id}`);
+        let rateSpan = document.getElementById(`rate_${dev.id}`);
+
+        if (timerEl) timerEl.innerText = formatTime(dev.elapsedSeconds);
+        if (timeCostEl) timeCostEl.innerText = timeCost.toFixed(2) + " ج.م";
+        if (totalCostEl) totalCostEl.innerText = totalCost.toFixed(2) + " ج.م";
+        if (rateSpan) rateSpan.innerText = currentRate;
+        
+        if (modeBtn) {
+            modeBtn.innerText = dev.mode === 'single' ? 'وضع: سنجل (تحويل لمالتي)' : 'وضع: مالتي (تحويل لسنجل)';
+        }
+
+        if (itemsTextEl) {
+            let itemsStr = dev.itemsList.map(i => i.name + ' (' + i.price + ')').join(', ') || 'لا توجد';
+            itemsTextEl.innerText = `الطلبات: ${itemsStr} (المجموع: ${dev.itemsCost} ج.م)`;
+        }
+
+        if (actionsEl) {
+            if (!dev.startTime) {
+                actionsEl.innerHTML = `
+                    <button class="start" onclick="startTimer(${dev.id})" style="flex:1;">فتح تايم</button>
+                    <button onclick="resetDevice(${dev.id})" style="background: #6b7280; flex:1;">تصفير</button>
+                `;
+            } else {
+                actionsEl.innerHTML = `
+                    <button class="stop" onclick="stopAndCheckout(${dev.id})" style="flex:1;">قفل وعمل شيك</button>
+                    <button onclick="resetDevice(${dev.id})" style="background: #6b7280; flex:1;">تصفير</button>
+                `;
+            }
+        }
+    }
+
+    function updateDevicesDynamicValues() {
+        devices.forEach(dev => updateSingleDeviceUI(dev));
+    }
+
+    function selectPresetItem(id) {
+        let select = document.getElementById(`preset_item_${id}`);
+        let val = select.value;
+        if (!val) return;
+        let parts = val.split('|');
+        document.getElementById(`item_name_${id}`).value = parts[0];
+        document.getElementById(`item_price_${id}`).value = parts[1];
+    }
+
+    function formatTime(totalSeconds) {
+        let hrs = Math.floor(totalSeconds / 3600);
+        let mins = Math.floor((totalSeconds % 3600) / 60);
+        let secs = totalSeconds % 60;
+        return `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+    }
+
+    function startTimer(id) {
+        let dev = devices.find(d => d.id === id);
+        if (!dev.startTime) {
+            dev.startTime = Date.now();
+            dev.timerInterval = setInterval(() => {
+                dev.elapsedSeconds++;
+                if (dev.mode === 'single') {
+                    dev.singleSeconds++;
+                } else {
+                    dev.multiSeconds++;
+                }
+                updateSingleDeviceUI(dev);
+            }, 1000);
+            updateSingleDeviceUI(dev);
+        }
+    }
+
+    function stopAndCheckout(id) {
+        let dev = devices.find(d => d.id === id);
+        if (dev.startTime) {
+            clearInterval(dev.timerInterval);
+            dev.startTime = null;
+            
+            let singleHours = dev.singleSeconds / 3600;
+            let multiHours = dev.multiSeconds / 3600;
+            let singleCost = singleHours * rates[dev.type].single;
+            let multiCost = multiHours * rates[dev.type].multi;
+            let timeCost = singleCost + multiCost;
+            let totalCost = timeCost + dev.itemsCost;
+
+            let nowStr = new Date().toLocaleTimeString('ar-EG');
+            let logEntry = {
+                user: currentUser.username,
+                deviceName: dev.name,
+                duration: formatTime(dev.elapsedSeconds),
+                timeCost: timeCost.toFixed(2),
+                itemsSummary: dev.itemsList.map(i => i.name + ' (' + i.price + ')').join(', ') || 'لا توجد',
+                total: totalCost.toFixed(2),
+                timestamp: nowStr
+            };
+            dailyLogs.push(logEntry);
+            localStorage.setItem('sh3rwy_daily_logs', JSON.stringify(dailyLogs));
+
+            showReceipt(dev, singleCost, multiCost, timeCost, totalCost);
+            updateSingleDeviceUI(dev);
+        }
+    }
+
+    function showReceipt(dev, singleCost, multiCost, timeCost, totalCost) {
+        let modal = document.getElementById('receiptModal');
+        let content = document.getElementById('receiptContent');
+        
+        let itemsHtml = dev.itemsList.map(i => `<tr><td>${i.name}</td><td>${i.price} ج.م</td></tr>`).join('');
+        if(dev.itemsList.length === 0) itemsHtml = `<tr><td colspan="2">لا توجد طلبات إضافية</td></tr>`;
+
+        content.innerHTML = `
+            <h2>Sh3rwy PlayStation</h2>
+            <p style="text-align: center; margin:0; font-size: 0.9rem;">بواسطة: ${currentUser.username}</p>
+            <hr>
+            <p><strong>اسم الجهاز:</strong> ${dev.name}</p>
+            <p><strong>إجمالي مدة اللعب:</strong> ${formatTime(dev.elapsedSeconds)}</p>
+            <div style="background: #f8fafc; padding: 8px; border-radius: 5px; font-size: 0.9rem; margin: 8px 0;">
+                <p style="margin:2px 0;">⏳ وقت السنجل: ${formatTime(dev.singleSeconds)} | الحساب: <strong>${singleCost.toFixed(2)} ج.م</strong></p>
+                <p style="margin:2px 0;">🎮 وقت المالتي: ${formatTime(dev.multiSeconds)} | الحساب: <strong>${multiCost.toFixed(2)} ج.م</strong></p>
+            </div>
+            <p><strong>إجمالي حساب التايم:</strong> ${timeCost.toFixed(2)} ج.م</p>
+            <hr>
+            <p><strong>الطلبات (مشروبات):</strong></p>
+            <table style="width:100%; font-size: 0.9rem;">
+                <tr><th>الطلب</th><th>السعر</th></tr>
+                ${itemsHtml}
+            </table>
+            <hr>
+            <h3 style="text-align: center; color: var(--success);">الإجمالي النهائي: ${totalCost.toFixed(2)} ج.م</h3>
+            <div style="display: flex; gap: 5px; margin-top: 15px;" class="no-print">
+                <button onclick="window.print()" style="flex: 1; background: var(--primary);">طباعة الشيك</button>
+                <button onclick="saveToDebtFromReceipt('${dev.name}', ${totalCost})" style="flex: 1; background: var(--warning);">تسجيل كدين</button>
+                <button onclick="closeModal()" style="flex: 1; background: var(--danger);">إغلاق</button>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('receiptModal').style.display = 'none';
+    }
+
+    function saveToDebtFromReceipt(deviceName, total) {
+        let clientName = prompt("أدخل اسم العميل لتسجيل الحساب في الدفتر:", deviceName);
+        if (clientName) {
+            let paid = parseFloat(prompt("المبلغ المدفوع حالياً (اكتب 0 لو مأخدتش فلوس):", "0")) || 0;
+            debts.push({ user: currentUser.username, name: clientName, total: total, paid: paid });
+            localStorage.setItem('sh3rwy_debts', JSON.stringify(debts));
+            renderDebts();
+            closeModal();
+            alert("تم تسجيل الحساب في دفتر الديون بنجاح!");
+        }
+    }
+
+    function resetDevice(id) {
+        let dev = devices.find(d => d.id === id);
+        clearInterval(dev.timerInterval);
+        dev.startTime = null;
+        dev.elapsedSeconds = 0;
+        dev.singleSeconds = 0;
+        dev.multiSeconds = 0;
+        dev.itemsCost = 0;
+        dev.itemsList = [];
+        updateSingleDeviceUI(dev);
+    }
+
+    function addItem(id) {
+        let dev = devices.find(d => d.id === id);
+        let nameInput = document.getElementById(`item_name_${id}`);
+        let priceInput = document.getElementById(`item_price_${id}`);
+        
+        let itemName = nameInput.value.trim();
+        let itemPrice = parseFloat(priceInput.value) || 0;
+
+        if (itemName && itemPrice > 0) {
+            dev.itemsList.push({ name: itemName, price: itemPrice });
+            dev.itemsCost += itemPrice;
+            nameInput.value = '';
+            priceInput.value = '';
+            document.getElementById(`preset_item_${id}`).value = '';
+            updateSingleDeviceUI(dev);
+        }
+    }
+
+    function addDebt() {
+        let name = document.getElementById('clientName').value.trim();
+        let total = parseFloat(document.getElementById('clientTotal').value) || 0;
+        let paid = parseFloat(document.getElementById('clientPaid').value) || 0;
+
+        if (name && total > 0) {
+            debts.push({ user: currentUser.username, name, total, paid });
+            localStorage.setItem('sh3rwy_debts', JSON.stringify(debts));
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientTotal').value = '';
+            document.getElementById('clientPaid').value = '';
+            renderDebts();
+        }
+    }
+
+    function renderDebts() {
+        let tbody = document.getElementById('debtTableBody');
+        tbody.innerHTML = '';
+        debts.forEach((d, index) => {
+            let remaining = d.total - d.paid;
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span style="background: #e0e7ff; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem;">${d.user || 'Sh3rwy'}</span></td>
+                <td>${d.name}</td>
+                <td>${d.total} ج.م</td>
+                <td>${d.paid} ج.م</td>
+                <td style="color: ${remaining > 0 ? 'red' : 'green'}; font-weight: bold;">${remaining} ج.م</td>
+                <td>
+                    <button onclick="editPaidAmount(${index})" style="background:#2563eb; padding:4px 6px; font-size: 0.85rem; width: auto; margin-bottom: 2px;">تعديل المدفوع</button>
+                    <button onclick="removeDebt(${index})" style="background:var(--danger); padding:4px 6px; font-size: 0.85rem; width: auto;">حذف</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function editPaidAmount(index) {
+        let d = debts[index];
+        let newPaidInput = prompt(`العميل: ${d.name}\nالمبلغ المطلوب: ${d.total} ج.م\nالمدفوع حالياً: ${d.paid} ج.م\n\nأدخل إجمالي المبلغ المدفوع الجديد:`, d.paid);
+        
+        if (newPaidInput !== null) {
+            let newPaid = parseFloat(newPaidInput);
+            if (!isNaN(newPaid)) {
+                d.paid = newPaid;
+                localStorage.setItem('sh3rwy_debts', JSON.stringify(debts));
+                renderDebts();
+                alert("تم تحديث المبلغ المدفوع بنجاح!");
+            } else {
+                alert("برجاء إدخال رقم صحيح!");
+            }
+        }
+    }
+
+    function removeDebt(index) {
+        debts.splice(index, 1);
+        localStorage.setItem('sh3rwy_debts', JSON.stringify(debts));
+        renderDebts();
+    }
+
+    function renderDailyLog() {
+        let tbody = document.getElementById('dailyLogTableBody');
+        tbody.innerHTML = '';
+        
+        let selectedView = 'ALL';
+        if (currentUser && currentUser.role === 'admin') {
+            let selectEl = document.getElementById('selectUserLogView');
+            if (selectEl) selectedView = selectEl.value;
+        } else if (currentUser) {
+            selectedView = currentUser.username;
+        }
+
+        let filteredLogs = dailyLogs.filter(log => {
+            if (selectedView === 'ALL') return true;
+            return log.user === selectedView;
+        });
+
+        let grandTotal = 0;
+        filteredLogs.forEach(log => {
+            grandTotal += parseFloat(log.total);
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span style="background: #e0e7ff; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem;">${log.user}</span></td>
+                <td>${log.deviceName}</td>
+                <td>${log.duration}</td>
+                <td>${log.timeCost} ج.م</td>
+                <td>${log.itemsSummary}</td>
+                <td style="color: var(--success); font-weight: bold;">${log.total} ج.م</td>
+                <td style="font-size: 0.85rem; color: #666;">${log.timestamp}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('grandTotalDisplay').innerText = grandTotal.toFixed(2);
+        document.getElementById('totalOperationsCount').innerText = filteredLogs.length;
+    }
+
+    function clearDailyLog() {
+        if (confirm("هل أنت متأكد من تصفير سجل اليوم بالكامل؟")) {
+            if (currentUser.role === 'admin') {
+                let selectedView = document.getElementById('selectUserLogView').value;
+                if (selectedView === 'ALL') {
+                    dailyLogs = [];
+                } else {
+                    dailyLogs = dailyLogs.filter(log => log.user !== selectedView);
+                }
+            } else {
+                dailyLogs = dailyLogs.filter(log => log.user !== currentUser.username);
+            }
+            localStorage.setItem('sh3rwy_daily_logs', JSON.stringify(dailyLogs));
+            renderDailyLog();
+            alert("تم تصفير السجل بنجاح!");
+        }
+    }
+</script>
+
+</body>
+</html>
